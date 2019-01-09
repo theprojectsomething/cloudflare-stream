@@ -1,5 +1,5 @@
 {
-  "name": "@theprojectsomething/cloudflare-stream-promise",
+  "name": "cloudflare-stream-promise",
   "version": "0.0.1",
   "description": "Cloudflare Stream API client for Node, wrapped around the finger of tus, and forked from larkin-nz/cloudflare-stream",
   "main": "src/index.js",
