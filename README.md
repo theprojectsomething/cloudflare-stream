@@ -1,65 +1,100 @@
-# Cloudflare Stream
+# Cloudflare Stream Promise
 
-A minimalistic node.js package for easily uploading videos to [Cloudflare Stream](https://developers.cloudflare.com/stream/).
+A Cloudflare Stream API client for Node, wrapped around the finger of tus, and forked from the eventful [larkin-nz/cloudflare-stream](https://github.com/larkin-nz/cloudflare-stream) ... so you can easily upload videos to [Cloudflare Stream](https://developers.cloudflare.com/stream/). Promise.
 
 ## Getting Started
 
 Let's start off by installing the package via NPM.
 
 ```sh
-npm i cloudflare-stream
+npm i cloudflare-stream-promise
 ```
 
-Once you've done that, you're going to want to create an instance of a [CloudflareStream](#cloudflarestream) with your [credentials](#credentials).
+Once you've done that, you'll want to create an instance of a [CloudflareStream](#cloudflarestream) with your [credentials](#credentials).
 
 ```js
-import { CloudflareStream } from 'cloudflare-stream';
+CloudflareStream = require('cloudflare-stream-promise');
 
-const uploader = new CloudflareStream({
-  email: 'sam@example.com', // cloudflare email address
-  key: 'c23864bc3ada9bf9c937810f62bb69a4e90b0' // cloudflare api key
-});
-```
-
-Now that you've made an instance, you're going to want to upload your video to your zone.
-Let's create an [upload](#uploaduploadoptions) with your [upload options](#uploadoptions).
-
-```js
-const upload = uploader.upload({
-  zone: 'ca4239cdd6a52cec1e916a6cd0e2f629', // cloudflare zone id
-  path: './videos/demo-video.mp4' // path to video on filesystem
+const stream = new CloudflareStream({
+  email: 'boom@tish', // Account email
+  key: 'XXX', // Cloudflare Account ID
+  zone: 'YYY', // Cloudflare API Zone ID
 });
 ```
 
-The [upload](#uploaduploadoptions) method returns an [EventEmitter](https://nodejs.org/api/events.html#events_class_eventemitter) which has three events ([progress](#uploadeventprogressmessage), [success](#uploadeventsuccessmessage), [error](#uploadeventerrormessage)).
-
-Let's create some logs from your [upload events](#upload-events).
+Kewl. Ready to rock. Let's create an [Upload](#upload) with some [upload options](#uploadoptions) (that  promises to complete!):
 
 ```js
-upload.on('progress', (progress) => {
-  console.log(`${progress.precentage} of upload completed (${progress.uploaded} bytes / ${progress.total} bytes)`);
-});
+stream.Upload(filepath, {
+  name: 'bam! the movie', // this name appears in the Cloudflare Stream dashboard
+  meta: { // optionally include / override some metadata
+    type: 'video/mp4', // mime type is included by default
+    size: 12345, // as are total bytes
+  },
+})
+.then(e => console.log(e)) // fires on success!
+.catch(e => console.log('Error', e)); // explodes into action on an error (duh)
+```
 
-upload.on('error', (error) => {
-  console.log('An error has occurred', error);
-});
+OK, but how soon is now? You can also choose from a variety of callbacks: onStart, onProgress, onSuccess, and onError can all be included in your [upload options](#uploadoptions):
 
-upload.on('success', (response) => {
-  console.log(response);
-});
+
+```js
+stream.Upload(filepath, {
+  onStart: upload => console.log(upload), // use to e.g. upload.abort()
+  onProgress: (bytes, total) => console.log(`${Math.floor(100 * bytes / total)}%`),
+  onSuccess: e => console.log(e) // mirrors promise resolution
+  onError: e => console.log('Error', e) // mirrors promise rejection
+})
+.then(e => console.log(e)) // mirrored by onSuccess callback
+.catch(e => console.log('Error', e)); // mirrored by onError callback
+
+```
+
+Groovetown. What other fun things can we do?
+
+
+```js
+stream.getList().then((list) => {
+  console.log(list); // get everything you've got
+  return stream.getVideo(list[0].uid).then((video) => {
+    console.log(video); // get your favourite
+    return stream.getLink(video.uid).then((link) => {
+      console.log(link); // get the link to your favourite
+      return stream.getEmbed(video.uid).then((embed) => {
+        console.log(embed); // get the embed code for your favourite
+        return stream.deleteVideo(video.uid); // get bored and delete your favourite
+      });
+    });
+  });
+})
+.catch(e => console.log('Error', e));
+
 ```
 
 
 ## API Documentation
 
 ### CloudflareStream
-```ts
+```js
 class CloudflareStream {
 
-  constructor(credentials: CloudflareCredentials);
+  constructor(credentials: Object);
 
-  upload(uploadOptions: CloudflareUpload);
+  Upload(file: String|Buffer, uploadOptions?: Object) => Object
 
+  getList() => Array
+  getVideo(videoId: String) => Object
+  getLink(videoId: String) => String
+  getEmbed(videoId: String) => String
+  deleteVideo(videoId: String) => Null
+  
+  api(apiOptions: String|Object) => Array|Object|String|Null
+  path(pathOptions?: Object) => String
+  
+  credentials: Object
+  url: Object
+  tus: <tus-js-client>
 }
 ```
 
@@ -67,120 +102,199 @@ class CloudflareStream {
 
 ##### credentials
 
-```ts
-type CloudflareCredentials {
-  email,
-  key,
-  zone?
+```js
+{
+  email: String,
+  key: String,
+  zone: String,
 }
 ```
 
 ##### credentials.email
 
-An ```email``` is always required, it should be the email address which you use to sign in with Cloudflare.
+An `email` is always required, it should be the email address which you use to sign in with Cloudflare.
 
 ##### credentials.key
 
-A ```key``` is always required, it should be the [API Key](https://support.cloudflare.com/hc/en-us/articles/200167836-Where-do-I-find-my-Cloudflare-API-key-
+A `key` is always required, it should be the [API Key](https://support.cloudflare.com/hc/en-us/articles/200167836-Where-do-I-find-my-Cloudflare-API-key-
 ) which matches the email address which you use to sign in with Cloudflare.
 
 ##### credentials.zone
 
-If a ```zone``` is not set in the ```uploadOptions``` of an instance method, then a ```zone``` is required in the ```credentials```.
-
-A ```zone``` must be a valid [Cloudflare DNS Zone](https://www.cloudflare.com/learning/dns/glossary/dns-zone/) which is accessable using the specified email address and API key.
+A `zone` is always required, and must be a valid [Cloudflare DNS Zone](https://www.cloudflare.com/learning/dns/glossary/dns-zone/) which is accessable using the specified email address and API key.
 
 
-#### upload(uploadOptions)
+#### Upload(file, uploadOptions)
 
-Returns an [EventEmitter](https://nodejs.org/api/events.html#events_class_eventemitter) with three events ([progress](#uploadeventprogressmessage), [success](#uploadeventsuccessmessage), [error](#uploadeventerrormessage)).
+Takes a local file path (or file buffer) alongside various options (including an `onProgress` callback). Returns a promise.
 
-##### uploadOptions
-```ts
-type CloudflareUpload {
-  zone?,
-  path?,
-  buffer?
-}
-```
+##### file: String|Buffer
 
-##### uploadOptions.zone
+A `file` is always required, and can be a path on the local filesystem or a buffer. [Cloudflare recommends](https://developers.cloudflare.com/stream/getting-started/input-files/) videos have an MP4 container, AAC audio codec, H264 video codec, and 30 or below frames per second. Cloudflare impose a 5GB limit per upload.
 
-If a ```zone``` has not been set in the constructor, then a ```zone``` is required in the ```uploadOptions```.
-
-A ```zone``` must be a valid [Cloudflare DNS Zone](https://www.cloudflare.com/learning/dns/glossary/dns-zone/) which is accessable using the specified email address and API key.
-
-If a ```zone``` has already been set in the constructor, this value will overwrite it.
-
-##### uploadOptions.path
-If a ```buffer``` has not been set in the ```uploadOptions```, then a ```path``` is required.
-
-A ```path``` must be a string pointing to a video file on the local filesystem. 
-
-It can be either an absolute path or a path relative to the node.js process (```process.cwd()```).
-
-##### uploadOptions.zone
-
-If a ```path``` has not been set in the ```uploadOptions```, then a ```buffer``` is required.
-
-A ```buffer``` must be a valid node.js [Buffer](https://nodejs.org/api/buffer.html#buffer_class_buffer).
-
-
-#### Upload Events
-
-##### uploadEvent.progress(message)
-
-Emitted when a chunk has been successfully uploaded.
-
-Example output:
+##### uploadOptions?: Object
 
 ```js
 {
-  uploaded: 23592,
-  total: 65536,
-  percentage: 35.99
+  name?: String,
+  meta?: Object,
+  onStart?: Function (<tus-js-client: Upload),
+  onProgress?: Function (bytesUploaded: Number, bytesTotal: Number),
+  OnSuccess?: Function (videoDetails: Object),
+  onError?: Function (errorDetails: Object)
 }
 ```
 
-##### uploadEvent.success(message)
+##### uploadOptions.name?: String
 
-Emitted when the upload has successfully completed.
+The `name` option is equivalent to `meta.name` and appears alongside the video on the Cloudflare Stream dashboard. If not explicitly set it is derived from the path (if available): `/path/to/{name}.mp4`.
+
+##### uploadOptions.meta?: Object
+
+The `meta` object allow for arbitrary `key:value` pairs to be stored alongside the video. Three values are stored automatically (where available), but can be overwritten: `meta.name` (see above), `meta.type: 'video/mp4'` (if path has .mp4 extension) and `meta:size` (in bytes)
+
+##### uploadOptions.onStart?: Function (`<tus-js-client: Upload>`)
+
+The `onStart` option sets a callback to be fired when the upload starts. Arguments include the wrapped [tus-js-client's](https://github.com/tus/tus-js-client#new-tusuploadfile-options) instantiated `upload` object, allowing the upload to be paused `upload.abort()` and then restarted `upload.start()` and for various [options and values](https://github.com/tus/tus-js-client#new-tusuploadfile-options) to be accessed.
+
+##### uploadOptions.onProgress?: Function (bytesUploaded: Number, bytesTotal: Number)
+
+Use the `onProgress` callback to keep track of upload progress.
+
+##### uploadOptions.onSuccess?: Function (videoDetails: Object)
+
+The `onSuccess` callback fires once the upload is complete and mirrors the promise resolution. Arguments include a video details object similar to that returned by a call to `getVideo`.
+
+##### uploadOptions.onError?: Function => errorDetails: Object
+
+The `onError` callback fires on any error and mirrors the promise rejection. The `errorDetails` object argument should always contain a `message` with information about the error.
+
+
+
+#### getList() => videoDetails: Object
+
+Returns an array of `videoDetails` objects (see example below).
+
+
+#### getVideo(videoId: String) => videoDetails: Object
+
+Takes a `videoId` and returns a `videoDetails` objects (see example below).
+
+
+#### getLink(videoId: String) => videoLink: String
+
+Takes a `videoId` and returns a `videoLink` HTML string, including an anchor pointing to the video on a Cloudflare-hosted preview page:
+
+```html
+<a href="https://watch.cloudflarestream.com/dd5d531a12de0c724bd1275a3b2bc9c6">Permanent Redirect</a>.
+```
+
+#### getEmbed(videoId: String) => videoEmbed: String
+
+Takes a `videoId` and returns a `videoEmbed` HTML string, including a <stream\> element and <script\> tag to load the player in dynamically:
+
+```html
+<stream src="dd5d531a12de0c724bd1275a3b2bc9c6"></stream><script data-cfasync="false" defer type="text/javascript" src="https://embed.videodelivery.net/embed/r4xu.fla9.latest.js?video=dd5d531a12de0c724bd1275a3b2bc9c6"></script>
+```
+
+#### deleteVideo(videoId: String)
+
+Takes a `videoId` and deletes the corresponding video.
+
+
+### Advanced
+
+#### api(apiOptions: String|Object) => Array|Object|String|Null
+
+The underlying method for everything except `Upload`. Takes a URL path (String) or apiOptions (object) and returns one of many possibilities. See the [Cloudflare API documentation](https://api.cloudflare.com/#stream-videos) for more detail.
+
+##### apiOptions?
+```js
+{
+  id?: String,
+  type?: String,
+  method?: String,
+  payload?: String,
+  headers?: Object
+}
+```
+
+##### apiOptions.id?: String
+
+Sets the path to a specific video.
+
+##### apiOptions.type?: String
+
+If included must be either 'embed' or 'preview'.
+
+##### apiOptions.method?: String
+
+Defaults to 'GET'.
+
+##### apiOptions.payload?: String
+
+Currently not required. For sending data to an endpoint.
+
+##### apiOptions.headers?: String
+
+Currently not required. For sending custom headers to an endpoint.
+
+
+#### path(pathOptions?: Object) => String
+
+Takes pathOptions (object) and returns a path to a resource. Defaults to API Zone media endpoint.
+
+##### pathOptions?
+```js
+{
+  id?: String,
+  type?: String,
+}
+```
+
+##### pathOptions.id?: String
+
+Sets the path to a specific video.
+
+##### apiOptions.type?: String
+
+If included must be either 'embed' or 'preview'.
+
+
+#### credentials: Object
+
+Returns the credentials supplied to the constructor.
+
+#### url: Object
+
+Returns the deconstructed API url.
+
+
+#### tus: `<tus-js-client>`
+
+Returns the wrapped `<tus-js-client>` for the magic.
+
+
+#### videoDetails: Object
+
+Returned by a successful `Upload`, calls to `getVideo()`, and for each video returned by `getList()`.
 
 Example output:
 ```js
 {
-  "result": {
-    "uid": "dd5d531a12de0c724bd1275a3b2bc9c6",
-    "thumbnail": "https://cloudflarestream.com/dd5d531a12de0c724bd1275a3b2bc9c6/thumbnails/thumb.png",
-    "readyToStream": false,
-    "status": {
-      "state": "inprogress",
-      "step": "encoding",
-      "pctComplete": "78.18"
-    },
-    "meta": {},
-    "labels": [],
-    "created": "2018-01-01T01:00:00.474936Z",
-    "modified": "2018-01-01T01:02:21.076571Z",
-    "size": 62335189,
-    "preview": "https://watch.cloudflarestream.com/dd5d531a12de0c724bd1275a3b2bc9c6"
+  "uid": "dd5d531a12de0c724bd1275a3b2bc9c6",
+  "thumbnail": "https://cloudflarestream.com/dd5d531a12de0c724bd1275a3b2bc9c6/thumbnails/thumb.png",
+  "readyToStream": false,
+  "status": {
+    "state": "inprogress",
+    "step": "encoding",
+    "pctComplete": "78.18"
   },
-  "success": true,
-  "errors": [],
-  "messages": []
+  "meta": {},
+  "labels": [],
+  "created": "2018-01-01T01:00:00.474936Z",
+  "modified": "2018-01-01T01:02:21.076571Z",
+  "size": 62335189,
+  "preview": "https://watch.cloudflarestream.com/dd5d531a12de0c724bd1275a3b2bc9c6"
 }
 ```
-
-##### uploadEvent.error(message)
-
-Emitted whenever an error has occured.
-
-Example output:
-
-```js
-{
-  message: 'Invalid Cloudflare Credentials'
-}
-```
-
-
