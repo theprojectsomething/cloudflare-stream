@@ -96,7 +96,7 @@ module.exports = class CloudflareStream {
       const buffer = isPath ? fs.readFileSync(file) : file;
       if (!buffer) return reject('Input file required: Upload(file, options)');
 
-      const metadata = Object.assign({ size: buffer.byteLength }, options.meta);
+      const metadata = Object.assign({}, options.meta);
       if (options.name || isPath) {
         metadata.name = options.name || file.replace(/^.*?([^\/]*?)(\.\w+)?$/, '$1');
 

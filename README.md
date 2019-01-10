@@ -29,7 +29,6 @@ stream.Upload(filepath, {
   name: 'bam! the movie', // this name appears in the Cloudflare Stream dashboard
   meta: { // optionally include / override some metadata
     type: 'video/mp4', // mime type is included by default
-    size: 12345, // as are total bytes
   },
 })
 .then(e => console.log(e)) // fires on success!
@@ -151,7 +150,7 @@ The `name` option is equivalent to `meta.name` and appears alongside the video o
 
 ##### uploadOptions.meta?: Object
 
-The `meta` object allow for arbitrary `key:value` pairs to be stored alongside the video. Three values are stored automatically (where available), but can be overwritten: `meta.name` (see above), `meta.type: 'video/mp4'` (if path has .mp4 extension) and `meta:size` (in bytes)
+The `meta` object allow for arbitrary `key:value` pairs to be stored alongside the video. Two values are stored automatically (where available), but can be overwritten: `meta.name` (see above) and `meta.type: 'video/mp4'` (if path has .mp4 extension)
 
 ##### uploadOptions.onStart?: Function (`<tus-js-client: Upload>`)
 
