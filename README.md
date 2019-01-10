@@ -1,6 +1,6 @@
 # Cloudflare Stream Promise
 
-A Cloudflare Stream API client for Node, wrapped around the finger of tus, and forked from the eventful [larkin-nz/cloudflare-stream](https://github.com/larkin-nz/cloudflare-stream) ... so you can easily upload videos to [Cloudflare Stream](https://developers.cloudflare.com/stream/). Promise.
+A Cloudflare Stream API client for Node, wrapped around the finger of [tus](https://github.com/tus/tus-js-client), and forked from the eventful [larkin-nz/cloudflare-stream](https://github.com/larkin-nz/cloudflare-stream) ... so you can easily upload videos to [Cloudflare Stream](https://developers.cloudflare.com/stream/). Promise.
 
 ## Getting Started
 
@@ -22,7 +22,7 @@ const stream = new CloudflareStream({
 });
 ```
 
-Kewl. Ready to rock. Let's create an [Upload](#upload) with some [upload options](#uploadoptions) (that  promises to complete!):
+Kewl. Ready to rock. Let's create an [Upload](#upload) from a [file](#file-stringbuffer) and some [upload options](#uploadoptions-object) (that  promises to complete!):
 
 ```js
 stream.Upload(filepath, {
@@ -35,7 +35,7 @@ stream.Upload(filepath, {
 .catch(e => console.log('Error', e)); // explodes into action on an error (duh)
 ```
 
-OK, but how soon is now? You can also choose from a variety of callbacks: onStart, onProgress, onSuccess, and onError can all be included in your [upload options](#uploadoptions):
+OK, but how soon is now? You can also choose from a variety of callbacks: [onStart](#uploadoptionsonstart-function--tus-js-client-upload-), [onProgress](#uploadoptionsonprogress-function-bytesuploaded-number-bytestotal-number), [onSuccess](#uploadoptionsonsuccess-function-videodetails-object), and [onError](#uploadoptionsonerror-function--errordetails-object) can all be included in your [upload options](#uploadoptions-object):
 
 
 ```js
@@ -54,21 +54,21 @@ Groovetown. What other fun things can we do?
 
 
 ```js
-stream.getList().then((list) => {
-  console.log(list); // get everything you've got
-  return stream.getVideo(list[0].uid).then((video) => {
-    console.log(video); // get your favourite
-    return stream.getLink(video.uid).then((link) => {
-      console.log(link); // get the link to your favourite
-      return stream.getEmbed(video.uid).then((embed) => {
-        console.log(embed); // get the embed code for your favourite
-        return stream.deleteVideo(video.uid); // get bored and delete your favourite
-      });
-    });
-  });
-})
+// get everything you've got
+stream.getList()
+.then(list => Promise.all([list,
+  // get just your favourite
+  stream.getVideo(list[0].uid),
+  // get the link to your favourite
+  stream.getLink(list[0].uid),
+  // get the embed code for your favourite
+  stream.getEmbed(list[0].uid),
+]))
+// get bored and delete your favourite
+.then(results => stream.deleteVideo(results[0][0].uid)
+  .then(() => results.concat('easy come easy go.')))
+.then(output => console.log(output))
 .catch(e => console.log('Error', e));
-
 ```
 
 
@@ -125,11 +125,11 @@ A `zone` is always required, and must be a valid [Cloudflare DNS Zone](https://w
 
 #### Upload(file, uploadOptions)
 
-Takes a local file path (or file buffer) alongside various options (including an `onProgress` callback). Returns a promise.
+Takes a local file path (or file buffer) alongside various options (including an [onProgress](#uploadoptionsonprogress-function-bytesuploaded-number-bytestotal-number) callback). Returns a promise.
 
 ##### file: String|Buffer
 
-A `file` is always required, and can be a path on the local filesystem or a buffer. [Cloudflare recommends](https://developers.cloudflare.com/stream/getting-started/input-files/) videos have an MP4 container, AAC audio codec, H264 video codec, and 30 or below frames per second. Cloudflare impose a 5GB limit per upload.
+A `file` is always required, and can be a path on the local filesystem or a buffer. [Cloudflare recommends](https://developers.cloudflare.com/stream/getting-started/input-files/) videos have an MP4 container, AAC audio codec, H264 video codec, and 30 or below frames per second. Cloudflare currently impose a 5GB limit per upload.
 
 ##### uploadOptions?: Object
 
@@ -154,7 +154,7 @@ The `meta` object allow for arbitrary `key:value` pairs to be stored alongside t
 
 ##### uploadOptions.onStart?: Function (`<tus-js-client: Upload>`)
 
-The `onStart` option sets a callback to be fired when the upload starts. Arguments include the wrapped [tus-js-client's](https://github.com/tus/tus-js-client#new-tusuploadfile-options) instantiated `upload` object, allowing the upload to be paused `upload.abort()` and then restarted `upload.start()` and for various [options and values](https://github.com/tus/tus-js-client#new-tusuploadfile-options) to be accessed.
+The `onStart` option sets a callback to be fired when the upload starts. Returned arguments include the wrapped [tus-js-client's](https://github.com/tus/tus-js-client#new-tusuploadfile-options) instantiated `upload` object, allowing the upload to be paused with `upload.abort()` and then restarted with `upload.start()`. It is also useful for accessing other [tus options and values](https://github.com/tus/tus-js-client#new-tusuploadfile-options).
 
 ##### uploadOptions.onProgress?: Function (bytesUploaded: Number, bytesTotal: Number)
 
@@ -162,7 +162,7 @@ Use the `onProgress` callback to keep track of upload progress.
 
 ##### uploadOptions.onSuccess?: Function (videoDetails: Object)
 
-The `onSuccess` callback fires once the upload is complete and mirrors the promise resolution. Arguments include a video details object similar to that returned by a call to `getVideo`.
+The `onSuccess` callback fires once the upload is complete and mirrors the promise resolution. Returned arguments include a [videoDetails object](#videodetails-object) similar to that returned by a call to `getVideo`.
 
 ##### uploadOptions.onError?: Function => errorDetails: Object
 
@@ -172,7 +172,7 @@ The `onError` callback fires on any error and mirrors the promise rejection. The
 
 #### getList() => videoDetails: Object
 
-Returns an array of `videoDetails` objects (see example below).
+Returns an array of [videoDetails objects](#videodetails-object).
 
 
 #### getVideo(videoId: String) => videoDetails: Object
@@ -205,7 +205,7 @@ Takes a `videoId` and deletes the corresponding video.
 
 #### api(apiOptions: String|Object) => Array|Object|String|Null
 
-The underlying method for everything except `Upload`. Takes a URL path (String) or apiOptions (object) and returns one of many possibilities. See the [Cloudflare API documentation](https://api.cloudflare.com/#stream-videos) for more detail.
+The underlying method for everything except [Upload](#uploadfile-uploadoptions). Takes a URL path (String) or apiOptions (object) and returns one of many(!) possibilities. See the [Cloudflare API documentation](https://api.cloudflare.com/#stream-videos) for more detail.
 
 ##### apiOptions?
 ```js
@@ -224,7 +224,7 @@ Sets the path to a specific video.
 
 ##### apiOptions.type?: String
 
-If included must be either 'embed' or 'preview'.
+If included 'embed' or 'preview' are currently available.
 
 ##### apiOptions.method?: String
 
@@ -241,7 +241,7 @@ Currently not required. For sending custom headers to an endpoint.
 
 #### path(pathOptions?: Object) => String
 
-Takes pathOptions (object) and returns a path to a resource. Defaults to API Zone media endpoint.
+Takes [pathOptions](#pathoptions) and returns a path to a resource. Defaults to the base API endpoint, e.g. `https://api.cloudflare.com/client/v4/zones/{credentials.zone}/media`
 
 ##### pathOptions?
 ```js
@@ -266,17 +266,17 @@ Returns the credentials supplied to the constructor.
 
 #### url: Object
 
-Returns the deconstructed API url.
+Returns the deconstructed base API endpoint.
 
 
 #### tus: `<tus-js-client>`
 
-Returns the wrapped `<tus-js-client>` for the magic.
+Returns the wrapped [<tus-js-client>](https://github.com/tus/tus-js-client). Go wild!
 
 
 #### videoDetails: Object
 
-Returned by a successful `Upload`, calls to `getVideo()`, and for each video returned by `getList()`.
+Returned by a successful [Upload](#uploadfile-uploadoptions), calls to [getVideo](#getvideovideoid-string--videodetails-object), and for each video returned by [getList](#getlist--videodetails-object).
 
 Example output:
 ```js
