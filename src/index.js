@@ -72,7 +72,7 @@ module.exports = class CloudflareStream {
             const decoded = JSON.parse(data);
             if (decoded.errors && decoded.errors.length > 0) {
               reject(decoded.errors);
-            } else resolve(decoded);
+            } else resolve(decoded.result || decoded);
 
           // or return as string (e.g. html, etc)
           } catch (e) {
