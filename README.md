@@ -22,7 +22,7 @@ const stream = new CloudflareStream({
 });
 ```
 
-Kewl. Ready to rock. Let's create an [Upload](#upload) from a [file](#file-stringbuffer) and some [upload options](#uploadoptions-object) (that  promises to complete!):
+Kewl. Ready to rock. Let's create an [Upload](#uploadfile-uploadoptions) from a [file](#file-stringbuffer) and some [upload options](#uploadoptions-object) (that  promises to complete!):
 
 ```js
 stream.Upload(filepath, {
