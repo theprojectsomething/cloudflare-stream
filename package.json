@@ -1,6 +1,6 @@
 {
   "name": "cloudflare-stream-promise",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cloudflare Stream API client for Node, wrapped around the finger of tus, and forked from larkin-nz/cloudflare-stream",
   "main": "src/index.js",
   "scripts": {
