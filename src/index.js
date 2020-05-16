@@ -83,7 +83,7 @@ module.exports = class CloudflareStream {
       req.on('error', e => reject(errorMsg(e)));
 
       // allow payloads to be sent if required
-      if (options.payload) req.send(options.payload);
+      if (options.payload) req.write(options.payload);
       req.end();
     });
   }
